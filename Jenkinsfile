@@ -24,6 +24,7 @@ pipeline {
                 script {
                     // Command to run tests and generate Allure & Cucumber reports
                     sh 'mvn test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results'
+                   
                 }
             }
         }
