@@ -1,60 +1,53 @@
 pipeline {
     agent any
-    environment {
-        ALLURE_RESULTS = 'target/allure-results'
-        CUCUMBER_RESULTS = 'target/cucumber.json'
-    }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: '*/master']],
+                    userRemoteConfigs: [[url: 'https://github.com/Marwa-Lakrab/framework-cucumber-automation.git']]
+                ])
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'mvn clean install -DskipTests'
+                script {
+                    sh 'mvn clean install -DskipTests'
+                }
             }
         }
 
         stage('Run Tests & Generate Reports') {
             steps {
-                sh '''
-                    mvn test -Dsurefire.useFile=false -Dallure.results.directory=${ALLURE_RESULTS} -Dcucumber.options="--plugin json:${CUCUMBER_RESULTS}"
-                    echo "Contents of allure-results:"
-                    ls -la ${ALLURE_RESULTS}
-                    echo "Contents of cucumber-report:"
-                    ls -la ${CUCUMBER_RESULTS}
-                '''
+                script {
+                    // Command to run tests and generate Allure & Cucumber reports
+                    sh 'mvn test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results'
+                }
+            }
+        }
+
+        stage('Generate Allure Report') {
+            steps {
+                script {
+                    // Ensure the Allure CLI tool path is correct
+                    sh '"C:\\Users\\marwa\\OneDrive\\Bureau\\Documents\\Proservices\\Formation automatisation des tests\\allure-2.32.0\\bin\\allure.bat" generate target/allure-results -c -o target/allure-report'
+                }
             }
         }
 
         stage('Archive Artifacts') {
             steps {
-                archiveArtifacts artifacts: '${ALLURE_RESULTS}/', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'target/allure-results/**, target/allure-report/**', allowEmptyArchive: false
             }
         }
     }
 
     post {
         always {
-            script {
-                // Publier le rapport Allure
-                allure([
-                    includeProperties: false,
-                    jdk: '',
-                    properties: [],
-                    reportBuildPolicy: 'ALWAYS',
-                    results: [[path: "${ALLURE_RESULTS}"]]
-                ])
-
-                // Publier le rapport Cucumber
-                publishCucumberReports([
-                    jsonReport: "${CUCUMBER_RESULTS}",
-                    reportName: "Cucumber Report"
-                ])
-            }
+            junit 'target/surefire-reports/*.xml' // Ensure test results are archived
+            allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
         }
     }
 }
