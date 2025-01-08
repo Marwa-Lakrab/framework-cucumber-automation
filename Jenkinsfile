@@ -23,7 +23,7 @@ pipeline {
             steps {
                 script {
                     // Command to run tests and generate Allure & Cucumber reports
-                    sh 'mvn test -Dcucumber.options="--plugin json:target/cucumber.json" -Dallure.results.directory=target/allure-results'
+                    sh 'mvn test -Dsurefire.useFile=false -Dallure.results.directory=target/allure-results'
                 }
             }
         }
@@ -39,26 +39,15 @@ pipeline {
 
         stage('Archive Artifacts') {
             steps {
-                // Archive results for both Allure and Cucumber
-                archiveArtifacts artifacts: 'target/allure-results/**, target/allure-report/**, target/cucumber.json', allowEmptyArchive: false
+                archiveArtifacts artifacts: 'target/allure-results/, target/allure-report/', allowEmptyArchive: false
             }
         }
     }
 
     post {
         always {
-            // Archive JUnit test results
-            junit 'target/surefire-reports/*.xml'
-            
-            // Publish Allure report
+            junit 'target/surefire-reports/*.xml' // Ensure test results are archived
             allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
-
-            // Generate and publish Cucumber JSON report
-            publishCucumberReports(
-                fileIncludePattern: 'target/cucumber.json', 
-                fileExcludePattern: '', 
-                sortingMethod: 'ALPHABETICAL'
-            )
-        }
-    }
+        }
+    }
 }
